@@ -3,112 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Олимпиадная Экономика</title>
+    <title>OlympEcon - Олимпиадная Экономика</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Подключаем шрифт для красоты -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <span class="logo-icon">📊</span>
-                <h1>EconOlymp</h1>
+
+    <!-- Навигация -->
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-icon">📈</span>
+            <span class="logo-text">OlympEcon</span>
+        </div>
+        <div class="nav-links">
+            <button class="nav-btn active" data-view="modules">Модули</button>
+            <button class="nav-btn" data-view="shop">Магазин</button>
+            <button class="nav-btn" data-view="profile">Профиль</button>
+        </div>
+        <div class="user-stats-mini">
+            <span id="mini-score">0</span> 💰
+        </div>
+    </nav>
+
+    <!-- Основной контейнер -->
+    <main class="container">
+        
+        <!-- Экран Модулей -->
+        <section id="view-modules" class="view active">
+            <h1 class="page-title">Программа обучения</h1>
+            <div class="modules-grid" id="modules-container">
+                <!-- Карточки модулей генерируются через JS -->
             </div>
-            <nav class="nav">
-                <button class="nav-btn active" data-section="modules">
-                    <span class="nav-icon">📚</span>
-                    <span class="nav-text">Модули</span>
-                </button>
-                <button class="nav-btn" data-section="shop">
-                    <span class="nav-icon">🛒</span>
-                    <span class="nav-text">Магазин</span>
-                </button>
-                <button class="nav-btn" data-section="profile">
-                    <span class="nav-icon">👤</span>
-                    <span class="nav-text">Профиль</span>
-                </button>
-            </nav>
-            <div class="score-display">
-                <span class="score-icon">⭐</span>
-                <span id="totalScore">0</span>
+        </section>
+
+        <!-- Экран Магазина -->
+        <section id="view-shop" class="view">
+            <h1 class="page-title">Магазин улучшений</h1>
+            <p class="subtitle">Покупайте темы оформления и достижения за баллы.</p>
+            <div class="shop-grid" id="shop-container">
+                <!-- Товары генерируются через JS -->
             </div>
-            <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-        </header>
+        </section>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Modules Section -->
-            <section id="modules" class="section active">
-                <h2 class="section-title">Модули обучения</h2>
-                <div class="modules-grid" id="modulesGrid"></div>
-            </section>
-
-            <!-- Module Detail Section -->
-            <section id="moduleDetail" class="section">
-                <button class="back-btn" id="backToModules">← Назад к модулям</button>
-                <div class="module-header">
-                    <div class="module-icon" id="moduleIcon"></div>
-                    <h2 id="moduleTitle"></h2>
-                </div>
-                <div class="module-tabs">
-                    <button class="tab-btn active" data-tab="theory">Теория</button>
-                    <button class="tab-btn" data-tab="tasks">Задания</button>
-                    <button class="tab-btn" data-tab="progress">Прогресс</button>
-                </div>
-                <div class="tab-content">
-                    <div id="theoryTab" class="tab-panel active"></div>
-                    <div id="tasksTab" class="tab-panel"></div>
-                    <div id="progressTab" class="tab-panel"></div>
-                </div>
-            </section>
-
-            <!-- Shop Section -->
-            <section id="shop" class="section">
-                <h2 class="section-title">Магазин</h2>
-                <p class="shop-description">Покупайте улучшения и кастомизацию за заработанные баллы!</p>
-                <div class="shop-grid" id="shopGrid"></div>
-            </section>
-
-            <!-- Profile Section -->
-            <section id="profile" class="section">
-                <h2 class="section-title">Ваш прогресс</h2>
-                <div class="profile-stats">
-                    <div class="stat-card">
-                        <div class="stat-value" id="profileScore">0</div>
-                        <div class="stat-label">Всего баллов</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="profileProgress">0%</div>
-                        <div class="stat-label">Прогресс курса</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="profileTasksCompleted">0/0</div>
-                        <div class="stat-label">Выполнено заданий</div>
+        <!-- Экран Профиля -->
+        <section id="view-profile" class="view">
+            <h1 class="page-title">Ваш прогресс</h1>
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="avatar">🎓</div>
+                    <div class="stats-big">
+                        <div class="stat-item">
+                            <span class="stat-value" id="total-score">0</span>
+                            <span class="stat-label">Всего баллов</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="total-progress">0%</span>
+                            <span class="stat-label">Прогресс курса</span>
+                        </div>
                     </div>
                 </div>
+                
                 <div class="inventory-section">
-                    <h3>Ваши покупки</h3>
-                    <div id="inventoryList" class="inventory-list"></div>
+                    <h3>Ваши покупки и темы</h3>
+                    <p class="hint">Нажмите на тему, чтобы применить её.</p>
+                    <div class="inventory-grid" id="inventory-container">
+                        <!-- Инвентарь генерируется через JS -->
+                    </div>
                 </div>
-            </section>
-        </main>
 
-        <!-- Mobile Navigation -->
-        <nav class="mobile-nav" id="mobileNav">
-            <button class="mobile-nav-btn active" data-section="modules">
-                <span>📚</span>
-                <span>Модули</span>
-            </button>
-            <button class="mobile-nav-btn" data-section="shop">
-                <span>🛒</span>
-                <span>Магазин</span>
-            </button>
-            <button class="mobile-nav-btn" data-section="profile">
-                <span>👤</span>
-                <span>Профиль</span>
-            </button>
-        </nav>
-    </div>
+                <div class="reset-section">
+                    <button id="reset-progress-btn" class="btn-danger">Сбросить весь прогресс</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Экран Деталей Модуля (Теория + Задания) -->
+        <section id="view-module-detail" class="view">
+            <button class="back-btn" onclick="app.navigate('modules')">← Назад к модулям</button>
+            
+            <div class="module-header">
+                <h1 id="detail-title">Название модуля</h1>
+                <div class="module-badges">
+                    <span class="badge progress-badge">Прогресс: <span id="detail-progress">0%</span></span>
+                    <span class="badge score-badge">Баллы: <span id="detail-score">0</span></span>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="theory">Теория</button>
+                <button class="tab-btn" data-tab="tasks">Задания</button>
+            </div>
+
+            <div class="tab-content">
+                <!-- Блок Теории -->
+                <div id="tab-theory" class="content-block active">
+                    <div id="theory-container" class="accordion">
+                        <!-- Секции теории -->
+                    </div>
+                </div>
+
+                <!-- Блок Заданий -->
+                <div id="tab-tasks" class="content-block">
+                    <div id="tasks-container">
+                        <!-- Список заданий -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Уведомления -->
+    <div id="toast-container"></div>
 
     <script src="data.js"></script>
     <script src="app.js"></script>
