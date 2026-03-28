@@ -1,627 +1,613 @@
-// Main Application Logic
-class EconOlympApp {
+class EconomyApp {
     constructor() {
         this.state = {
             score: 0,
-            completedTasks: {}, // taskId -> {completed: boolean, earnedPoints: number}
-            purchasedItems: [],
-            currentTheme: 'light',
-            currentModule: null
+            completedTasks: {}, // { taskId: true }
+            inventory: ['theme_light'], // По умолчанию светлая тема
+            currentTheme: 'theme_light',
+            extraAnimations: false
         };
-        
+        this.currentModuleId = null;
         this.init();
     }
 
     init() {
         this.loadState();
-        this.setupEventListeners();
+        this.applyTheme(this.state.currentTheme);
+        this.setupNavigation();
         this.renderModules();
-        this.renderShop();
         this.updateUI();
-        this.applyTheme();
     }
 
-    // State Management
+    // --- Управление состоянием и LocalStorage ---
     loadState() {
-        const saved = localStorage.getItem('econOlympState');
+        const saved = localStorage.getItem('olympEconState');
         if (saved) {
             this.state = { ...this.state, ...JSON.parse(saved) };
         }
     }
 
     saveState() {
-        localStorage.setItem('econOlympState', JSON.stringify(this.state));
+        localStorage.setItem('olympEconState', JSON.stringify(this.state));
+        this.updateUI();
     }
 
-    // Event Listeners
-    setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
+    addScore(points) {
+        this.state.score += points;
+        this.saveState();
+        this.showToast(`+${points} баллов!`, 'success');
+    }
+
+    // --- Навигация ---
+    setupNavigation() {
+        document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const section = e.currentTarget.dataset.section;
-                this.navigate(section);
+                this.navigate(e.target.dataset.view);
             });
-        });
-
-        // Back button
-        document.getElementById('backToModules').addEventListener('click', () => {
-            this.showModules();
-        });
-
-        // Module tabs
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tab = e.currentTarget.dataset.tab;
-                this.switchTab(tab);
-            });
-        });
-
-        // Mobile menu
-        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-            document.querySelector('.nav').classList.toggle('active');
         });
     }
 
-    // Navigation
-    navigate(section) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById(section).classList.add('active');
+    navigate(viewId, moduleId = null) {
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
         
-        document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.section === section);
-        });
-
-        if (section === 'profile') {
-            this.renderProfile();
+        const targetView = document.getElementById(`view-${viewId}`);
+        if (targetView) {
+            targetView.classList.add('active');
+            // Подсветка кнопки меню
+            const navBtn = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
+            if (navBtn) navBtn.classList.add('active');
         }
+
+        if (viewId === 'modules') this.renderModules();
+        if (viewId === 'shop') this.renderShop();
+        if (viewId === 'profile') this.renderProfile();
+        if (viewId === 'module-detail' && moduleId) this.renderModuleDetail(moduleId);
     }
 
-    showModules() {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById('modules').classList.add('active');
-        this.state.currentModule = null;
-    }
-
-    // Render Functions
+    // --- Отрисовка Модулей ---
     renderModules() {
-        const grid = document.getElementById('modulesGrid');
-        grid.innerHTML = '';
+        const container = document.getElementById('modules-container');
+        container.innerHTML = '';
 
-        courseData.modules.forEach(module => {
-            const moduleProgress = this.getModuleProgress(module);
+        courseData.modules.forEach(mod => {
+            const totalTasks = mod.tasks.length;
+            const completedCount = mod.tasks.filter(t => this.state.completedTasks[t.id]).length;
+            const progress = Math.round((completedCount / totalTasks) * 100);
+            const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? t.points : 0), 0);
+
             const card = document.createElement('div');
-            card.className = 'module-card';
+            card.className = 'card';
+            card.onclick = () => this.navigate('module-detail', mod.id);
             card.innerHTML = `
-                <div class="module-card-header">
-                    <div class="module-card-icon">${module.icon}</div>
-                    <div>
-                        <h3 class="module-card-title">${module.title}</h3>
-                        <p class="module-card-description">${module.description}</p>
-                    </div>
+                <div>
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${mod.icon}</div>
+                    <h3>${mod.title}</h3>
+                    <p>${mod.description}</p>
                 </div>
-                <div class="module-card-stats">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${moduleProgress.percent}%"></div>
+                <div class="card-meta">
+                    <div style="flex:1; margin-right:10px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:2px;">
+                            <span>Прогресс</span>
+                            <span>${progress}%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                        </div>
                     </div>
-                    <span class="module-points">${moduleProgress.points} pts</span>
+                    <div style="text-align:right;">
+                        <div style="color:var(--accent-color); font-weight:bold;">${moduleScore} 💰</div>
+                        <div style="font-size:0.8rem; opacity:0.7;">из заданий</div>
+                    </div>
                 </div>
             `;
-            card.addEventListener('click', () => this.openModule(module));
-            grid.appendChild(card);
+            container.appendChild(card);
         });
     }
 
-    getModuleProgress(module) {
-        let completedCount = 0;
-        let totalPoints = 0;
-        let earnedPoints = 0;
+    // --- Детали Модуля (Теория + Задания) ---
+    renderModuleDetail(moduleId) {
+        this.currentModuleId = moduleId;
+        const mod = courseData.modules.find(m => m.id === moduleId);
+        if (!mod) return;
 
-        module.tasks.forEach(task => {
-            totalPoints += task.points;
-            if (this.state.completedTasks[task.id]?.completed) {
-                completedCount++;
-                earnedPoints += this.state.completedTasks[task.id].earnedPoints || task.points;
+        document.getElementById('detail-title').innerText = mod.title;
+        
+        // Обновляем хедер статистики
+        this.updateModuleStats(mod);
+
+        // Рендер теории (Аккордеон)
+        const theoryContainer = document.getElementById('theory-container');
+        theoryContainer.innerHTML = '';
+        mod.theory.forEach((section, idx) => {
+            const item = document.createElement('div');
+            item.className = 'accordion-item';
+            item.innerHTML = `
+                <div class="accordion-header" onclick="app.toggleAccordion(this)">
+                    ${section.title}
+                    <span>▼</span>
+                </div>
+                <div class="accordion-content">
+                    ${section.content}
+                </div>
+            `;
+            theoryContainer.appendChild(item);
+        });
+
+        // Рендер заданий
+        const tasksContainer = document.getElementById('tasks-container');
+        tasksContainer.innerHTML = '';
+        mod.tasks.forEach(task => {
+            const isCompleted = this.state.completedTasks[task.id];
+            const taskEl = document.createElement('div');
+            taskEl.className = 'task-card';
+            taskEl.innerHTML = `
+                <div class="task-header">
+                    <strong>${task.title}</strong>
+                    <span class="task-points">${isCompleted ? '✅ ' + task.points + ' получено' : '?' + task.points}</span>
+                </div>
+                <div class="task-body">
+                    ${this.renderTaskBody(task, isCompleted)}
+                </div>
+            `;
+            tasksContainer.appendChild(taskEl);
+            
+            // Инициализация интерактива если нужно
+            if (task.type === 'interactive' && !isCompleted) {
+                this.initInteractiveTask(task);
+            }
+            if (task.type === 'matching' && !isCompleted) {
+                this.initMatchingTask(task);
             }
         });
 
-        return {
-            percent: module.tasks.length > 0 ? (completedCount / module.tasks.length) * 100 : 0,
-            points: earnedPoints,
-            completed: completedCount,
-            total: module.tasks.length
-        };
-    }
-
-    openModule(module) {
-        this.state.currentModule = module;
-        
-        document.getElementById('moduleIcon').textContent = module.icon;
-        document.getElementById('moduleTitle').textContent = module.title;
-        
-        this.renderTheory(module);
-        this.renderTasks(module);
-        this.renderModuleProgress(module);
-        
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById('moduleDetail').classList.add('active');
-        this.switchTab('theory');
-    }
-
-    renderTheory(module) {
-        const container = document.getElementById('theoryTab');
-        container.innerHTML = '';
-
-        module.theorySections.forEach((section, index) => {
-            const sectionEl = document.createElement('div');
-            sectionEl.className = 'theory-section';
-            sectionEl.innerHTML = `
-                <button class="theory-header ${index === 0 ? 'active' : ''}">
-                    ${section.title}
-                </button>
-                <div class="theory-content" style="${index === 0 ? 'max-height: 1000px;' : ''}">
-                    <div class="theory-content-inner">
-                        ${section.content}
-                    </div>
-                </div>
-            `;
-
-            const header = sectionEl.querySelector('.theory-header');
-            const content = sectionEl.querySelector('.theory-content');
-
-            header.addEventListener('click', () => {
-                const isActive = header.classList.contains('active');
-                document.querySelectorAll('.theory-header').forEach(h => h.classList.remove('active'));
-                document.querySelectorAll('.theory-content').forEach(c => c.style.maxHeight = '');
-                
-                if (!isActive) {
-                    header.classList.add('active');
-                    content.style.maxHeight = content.scrollHeight + 'px';
-                }
-            });
-
-            container.appendChild(sectionEl);
+        // Табы
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.content-block').forEach(c => c.classList.remove('active'));
+                e.target.classList.add('active');
+                document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+            };
         });
     }
 
-    renderTasks(module) {
-        const container = document.getElementById('tasksTab');
-        container.innerHTML = '';
+    updateModuleStats(mod) {
+        const totalTasks = mod.tasks.length;
+        const completedCount = mod.tasks.filter(t => this.state.completedTasks[t.id]).length;
+        const progress = Math.round((completedCount / totalTasks) * 100);
+        const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? t.points : 0), 0);
 
-        module.tasks.forEach(task => {
-            const taskState = this.state.completedTasks[task.id];
-            const isCompleted = taskState?.completed;
-            
-            const card = document.createElement('div');
-            card.className = `task-card ${isCompleted ? 'task-completed' : ''}`;
-            card.id = `task-${task.id}`;
-            
-            card.innerHTML = `
-                <div class="task-header">
-                    <h4 class="task-title">${task.title}</h4>
-                    <span class="task-points">${task.points} баллов</span>
-                </div>
-                <p class="task-description">${task.description}</p>
-                <div class="task-content" id="task-content-${task.id}"></div>
-                <div class="task-feedback" id="task-feedback-${task.id}"></div>
-            `;
-
-            container.appendChild(card);
-            this.renderTaskContent(task, isCompleted);
-        });
+        document.getElementById('detail-progress').innerText = `${progress}%`;
+        document.getElementById('detail-score').innerText = moduleScore;
     }
 
-    renderTaskContent(task, isCompleted) {
-        const contentContainer = document.getElementById(`task-content-${task.id}`);
-        
+    toggleAccordion(header) {
+        const content = header.nextElementSibling;
+        content.classList.toggle('open');
+        header.querySelector('span').innerText = content.classList.contains('open') ? '▲' : '▼';
+    }
+
+    renderTaskBody(task, isCompleted) {
         if (isCompleted) {
-            contentContainer.innerHTML = '<p style="color: var(--success-color); font-weight: 600;">✓ Задание выполнено!</p>';
-            return;
+            return `<div style="padding:1rem; background:rgba(16,185,129,0.1); border-radius:8px; color:var(--accent-color);">Задание выполнено! Правильный ответ сохранен.</div>`;
         }
 
         switch (task.type) {
             case 'test':
-                this.renderTestTask(task, contentContainer);
-                break;
+                let optionsHtml = '';
+                task.options.forEach((opt, idx) => {
+                    optionsHtml += `<label><input type="radio" name="${task.id}" value="${idx}"> ${opt}</label>`;
+                });
+                return `
+                    <p>${task.question}</p>
+                    <div class="task-options">${optionsHtml}</div>
+                    <button class="btn" style="margin-top:1rem;" onclick="app.checkTest('${task.id}', ${task.correct}, ${task.points})">Проверить</button>
+                `;
+            
             case 'number':
-                this.renderNumberTask(task, contentContainer);
-                break;
-            case 'matching':
-                this.renderMatchingTask(task, contentContainer);
-                break;
+                return `
+                    <p>${task.question}</p>
+                    <input type="number" id="input-${task.id}" placeholder="Введите число">
+                    <button class="btn" onclick="app.checkNumber('${task.id}', ${task.correct}, ${task.tolerance || 0}, ${task.points})">Проверить</button>
+                `;
+
             case 'fill':
-                this.renderFillTask(task, contentContainer);
-                break;
+                return `
+                    <p>${task.question}</p>
+                    <input type="text" id="input-${task.id}" placeholder="Введите слово">
+                    <button class="btn" onclick="app.checkFill('${task.id}', ${JSON.stringify(task.variants)}, ${task.points})">Проверить</button>
+                `;
+
+            case 'matching':
+                let leftHtml = '', rightHtml = '';
+                task.pairs.forEach((pair, idx) => {
+                    leftHtml += `<div class="match-item" data-id="${idx}" data-side="left">${pair.left}</div>`;
+                    rightHtml += `<div class="match-item" data-id="${idx}" data-side="right">${pair.right}</div>`;
+                });
+                return `
+                    <p>Нажмите на элемент слева, затем на соответствующий справа.</p>
+                    <div class="matching-container" id="match-${task.id}">
+                        <div class="matching-col">${leftHtml}</div>
+                        <div class="matching-col">${rightHtml}</div>
+                    </div>
+                    <button class="btn" style="margin-top:1rem;" onclick="app.checkMatching('${task.id}', ${task.pairs.length}, ${task.points})">Проверить</button>
+                    <div id="match-status-${task.id}" style="margin-top:0.5rem; font-weight:bold;"></div>
+                `;
+
             case 'interactive':
-                this.renderInteractiveTask(task, contentContainer);
-                break;
-        }
-    }
-
-    renderTestTask(task, container) {
-        const optionsHtml = task.config.options.map((option, index) => `
-            <div class="task-option" data-index="${index}">
-                <span>${String.fromCharCode(65 + index)})</span>
-                <span>${option}</span>
-            </div>
-        `).join('');
-
-        container.innerHTML = `
-            <div class="task-options">${optionsHtml}</div>
-            <button class="task-check-btn">Проверить</button>
-        `;
-
-        let selected = null;
-        container.querySelectorAll('.task-option').forEach(option => {
-            option.addEventListener('click', () => {
-                if (container.classList.contains('task-completed')) return;
-                container.querySelectorAll('.task-option').forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-                selected = parseInt(option.dataset.index);
-            });
-        });
-
-        container.querySelector('.task-check-btn').addEventListener('click', () => {
-            if (selected === null) return;
-            
-            const feedback = document.getElementById(`task-feedback-${task.id}`);
-            if (selected === task.config.correct) {
-                this.completeTask(task);
-                container.querySelectorAll('.task-option')[selected].classList.add('correct');
-                feedback.className = 'task-feedback success';
-                feedback.textContent = `Правильно! +${task.points} баллов`;
-            } else {
-                container.querySelectorAll('.task-option')[selected].classList.add('incorrect');
-                container.querySelectorAll('.task-option')[task.config.correct].classList.add('correct');
-                feedback.className = 'task-feedback error';
-                feedback.textContent = 'Неправильно! Попробуйте другое задание.';
-            }
-        });
-    }
-
-    renderNumberTask(task, container) {
-        container.innerHTML = `
-            <input type="number" class="task-input" id="input-${task.id}" placeholder="Введите число">
-            <button class="task-check-btn">Проверить</button>
-        `;
-
-        container.querySelector('.task-check-btn').addEventListener('click', () => {
-            const input = document.getElementById(`input-${task.id}`);
-            const value = parseFloat(input.value);
-            const feedback = document.getElementById(`task-feedback-${task.id}`);
-            
-            const isCorrect = Math.abs(value - task.config.answer) <= (task.config.tolerance || 0);
-            
-            if (isCorrect) {
-                this.completeTask(task);
-                feedback.className = 'task-feedback success';
-                feedback.textContent = `Правильно! +${task.points} баллов`;
-            } else {
-                feedback.className = 'task-feedback error';
-                feedback.textContent = `Неправильно! Правильный ответ: ${task.config.answer}`;
-            }
-        });
-    }
-
-    renderMatchingTask(task, container) {
-        const leftHtml = task.config.left.map((item, index) => `
-            <div class="matching-item" data-side="left" data-index="${index}">${item}</div>
-        `).join('');
-
-        const rightHtml = task.config.right.map((item, index) => `
-            <div class="matching-item" data-side="right" data-index="${index}">${item}</div>
-        `).join('');
-
-        container.innerHTML = `
-            <div class="matching-container">
-                <div class="matching-column">${leftHtml}</div>
-                <div class="matching-column">${rightHtml}</div>
-            </div>
-            <button class="task-check-btn">Проверить</button>
-        `;
-
-        let selectedLeft = null;
-        let selectedRight = null;
-        const matches = new Map();
-
-        container.querySelectorAll('.matching-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (container.classList.contains('task-completed')) return;
-                
-                const side = item.dataset.side;
-                const index = parseInt(item.dataset.index);
-                
-                if (side === 'left') {
-                    container.querySelectorAll('.matching-item[data-side="left"]').forEach(i => i.classList.remove('selected'));
-                    item.classList.add('selected');
-                    selectedLeft = index;
-                } else {
-                    container.querySelectorAll('.matching-item[data-side="right"]').forEach(i => i.classList.remove('selected'));
-                    item.classList.add('selected');
-                    selectedRight = index;
-                }
-
-                if (selectedLeft !== null && selectedRight !== null) {
-                    matches.set(selectedLeft, selectedRight);
-                    container.querySelectorAll('.matching-item.selected').forEach(i => {
-                        i.classList.remove('selected');
-                        i.classList.add('matched');
-                    });
-                    selectedLeft = null;
-                    selectedRight = null;
-                }
-            });
-        });
-
-        container.querySelector('.task-check-btn').addEventListener('click', () => {
-            const feedback = document.getElementById(`task-feedback-${task.id}`);
-            let allCorrect = true;
-
-            task.config.matches.forEach(([left, right]) => {
-                if (matches.get(left) !== right) {
-                    allCorrect = false;
-                }
-            });
-
-            if (allCorrect && matches.size === task.config.matches.length) {
-                this.completeTask(task);
-                feedback.className = 'task-feedback success';
-                feedback.textContent = `Правильно! +${task.points} баллов`;
-            } else {
-                feedback.className = 'task-feedback error';
-                feedback.textContent = 'Не все пары совпали. Попробуйте ещё раз.';
-                container.querySelectorAll('.matching-item.matched').forEach(i => i.classList.remove('matched'));
-                matches.clear();
-            }
-        });
-    }
-
-    renderFillTask(task, container) {
-        let textWithBlanks = task.config.text;
-        task.config.blanks.forEach((_, index) => {
-            textWithBlanks = textWithBlanks.replace('__', `<input type="text" class="blank-input" data-index="${index}">`);
-        });
-
-        container.innerHTML = `
-            <p class="fill-blanks-text">${textWithBlanks}</p>
-            <button class="task-check-btn">Проверить</button>
-        `;
-
-        container.querySelector('.task-check-btn').addEventListener('click', () => {
-            const feedback = document.getElementById(`task-feedback-${task.id}`);
-            const inputs = container.querySelectorAll('.blank-input');
-            let allCorrect = true;
-
-            inputs.forEach((input, index) => {
-                const userAnswer = input.value.trim().toLowerCase();
-                const correctAnswer = task.config.blanks[index].toLowerCase();
-                if (userAnswer !== correctAnswer) {
-                    allCorrect = false;
-                }
-            });
-
-            if (allCorrect) {
-                this.completeTask(task);
-                feedback.className = 'task-feedback success';
-                feedback.textContent = `Правильно! +${task.points} баллов`;
-            } else {
-                feedback.className = 'task-feedback error';
-                feedback.textContent = 'Есть ошибки. Проверьте написание слов.';
-            }
-        });
-    }
-
-    renderInteractiveTask(task, container) {
-        container.innerHTML = `
-            <div class="interactive-container">
-                <div class="slider-group">
-                    <div class="slider-label">
-                        <span>Количество товара X</span>
-                        <span id="slider-x-value">50</span>
+                return `
+                    <p>${task.description}</p>
+                    <div class="graph-container" id="graph-${task.id}">
+                        <canvas id="canvas-${task.id}"></canvas>
+                        <div class="drag-point" id="point-${task.id}" style="left:50%; top:50%;"></div>
                     </div>
-                    <input type="range" class="slider" id="slider-x" min="0" max="100" value="50">
-                </div>
-                <div class="slider-group">
-                    <div class="slider-label">
-                        <span>Количество товара Y</span>
-                        <span id="slider-y-value">50</span>
+                    <div class="graph-controls">
+                        <button class="btn" onclick="app.checkInteractive('${task.id}', ${task.config.targetX}, ${task.config.targetY}, ${task.config.tolerance}, ${task.points})">Зафиксировать точку</button>
                     </div>
-                    <input type="range" class="slider" id="slider-y" min="0" max="100" value="50">
-                </div>
-                <div class="graph-container">
-                    <div class="graph-axis graph-axis-x"></div>
-                    <div class="graph-axis graph-axis-y"></div>
-                    <div class="graph-line" id="graph-line"></div>
-                    <div class="graph-label" id="point-label" style="bottom: 50px; left: 50px;">📍</div>
-                </div>
-            </div>
-            <button class="task-check-btn">Проверить</button>
-        `;
+                `;
+            default:
+                return '<p>Тип задания не поддерживается</p>';
+        }
+    }
 
-        const sliderX = document.getElementById('slider-x');
-        const sliderY = document.getElementById('slider-y');
-        const valueX = document.getElementById('slider-x-value');
-        const valueY = document.getElementById('slider-y-value');
-        const pointLabel = document.getElementById('point-label');
-
-        const updateGraph = () => {
-            const x = parseInt(sliderX.value);
-            const y = parseInt(sliderY.value);
-            valueX.textContent = x;
-            valueY.textContent = y;
-            pointLabel.style.left = `${50 + x * 2.5}px`;
-            pointLabel.style.bottom = `${20 + y * 2.6}px`;
-        };
-
-        sliderX.addEventListener('input', updateGraph);
-        sliderY.addEventListener('input', updateGraph);
-
-        container.querySelector('.task-check-btn').addEventListener('click', () => {
-            const feedback = document.getElementById(`task-feedback-${task.id}`);
-            const x = parseInt(sliderX.value);
-            const y = parseInt(sliderY.value);
-            
-            // Check if point is on the curve (approximately)
-            const onCurve = Math.abs(x + y - 100) <= task.config.tolerance;
-            
-            if (onCurve) {
-                this.completeTask(task);
-                feedback.className = 'task-feedback success';
-                feedback.textContent = `Правильно! Точка на кривой. +${task.points} баллов`;
-            } else {
-                feedback.className = 'task-feedback error';
-                feedback.textContent = 'Точка должна быть на кривой производственных возможностей!';
+    // --- Логика проверки заданий ---
+    completeTask(taskId, points) {
+        if (!this.state.completedTasks[taskId]) {
+            this.state.completedTasks[taskId] = true;
+            this.addScore(points);
+            this.saveState();
+            // Перерисовать текущий модуль, чтобы обновить статус
+            if (this.currentModuleId) {
+                const mod = courseData.modules.find(m => m.id === this.currentModuleId);
+                this.updateModuleStats(mod);
+                this.renderModuleDetail(this.currentModuleId); 
             }
-        });
-
-        updateGraph();
-    }
-
-    completeTask(task) {
-        if (this.state.completedTasks[task.id]?.completed) return;
-
-        this.state.completedTasks[task.id] = {
-            completed: true,
-            earnedPoints: task.points
-        };
-        this.state.score += task.points;
-        
-        this.saveState();
-        this.updateUI();
-        
-        const card = document.getElementById(`task-${task.id}`);
-        if (card) {
-            card.classList.add('task-completed');
-        }
-
-        // Update module progress display
-        if (this.state.currentModule) {
-            this.renderModuleProgress(this.state.currentModule);
         }
     }
 
-    renderModuleProgress(module) {
-        const container = document.getElementById('progressTab');
-        const progress = this.getModuleProgress(module);
-
-        container.innerHTML = `
-            <div style="text-align: center; padding: 2rem;">
-                <div style="font-size: 3rem; font-weight: 700; color: var(--primary-color); margin-bottom: 1rem;">
-                    ${progress.percent.toFixed(0)}%
-                </div>
-                <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-                    Выполнено заданий: ${progress.completed} из ${progress.total}
-                </p>
-                <div style="background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius);">
-                    <p style="font-size: 1.2rem; font-weight: 600; color: var(--accent-color);">
-                        Набрано баллов: ${progress.points}
-                    </p>
-                </div>
-            </div>
-        `;
-    }
-
-    switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tab);
-        });
-        document.querySelectorAll('.tab-panel').forEach(panel => {
-            panel.classList.toggle('active', panel.id === `${tab}Tab`);
-        });
-    }
-
-    // Shop
-    renderShop() {
-        const grid = document.getElementById('shopGrid');
-        grid.innerHTML = '';
-
-        courseData.shop.forEach(item => {
-            const isPurchased = this.state.purchasedItems.includes(item.id);
-            const canAfford = this.state.score >= item.price;
-
-            const card = document.createElement('div');
-            card.className = 'shop-item';
-            card.innerHTML = `
-                <div class="shop-item-icon">${item.icon}</div>
-                <h4 class="shop-item-title">${item.name}</h4>
-                <p class="shop-item-description">${item.description}</p>
-                <div class="shop-item-price">${item.price} ⭐</div>
-                <button class="shop-item-btn ${isPurchased ? 'purchased' : ''}" 
-                        ${!canAfford && !isPurchased ? 'disabled' : ''}>
-                    ${isPurchased ? 'Куплено' : 'Купить'}
-                </button>
-            `;
-
-            card.querySelector('.shop-item-btn').addEventListener('click', () => {
-                if (!isPurchased && canAfford) {
-                    this.purchaseItem(item);
-                }
-            });
-
-            grid.appendChild(card);
-        });
-    }
-
-    purchaseItem(item) {
-        this.state.purchasedItems.push(item.id);
-        this.state.score -= item.price;
-        
-        if (item.type === 'theme') {
-            this.state.currentTheme = item.value;
-            this.applyTheme();
-        }
-        
-        this.saveState();
-        this.updateUI();
-        this.renderShop();
-    }
-
-    applyTheme() {
-        if (this.state.currentTheme === 'light') {
-            document.documentElement.removeAttribute('data-theme');
+    checkTest(taskId, correctIdx, points) {
+        const selected = document.querySelector(`input[name="${taskId}"]:checked`);
+        if (!selected) return this.showToast('Выберите вариант!', 'error');
+        if (parseInt(selected.value) === correctIdx) {
+            this.completeTask(taskId, points);
         } else {
-            document.documentElement.setAttribute('data-theme', this.state.currentTheme);
+            this.showToast('Неверно, попробуйте еще раз.', 'error');
         }
     }
 
-    // Profile
+    checkNumber(taskId, correct, tolerance, points) {
+        const val = parseFloat(document.getElementById(`input-${taskId}`).value);
+        if (Math.abs(val - correct) <= tolerance) {
+            this.completeTask(taskId, points);
+        } else {
+            this.showToast('Неверный ответ.', 'error');
+        }
+    }
+
+    checkFill(taskId, variants, points) {
+        const val = document.getElementById(`input-${taskId}`).value.trim().toLowerCase();
+        if (variants.includes(val)) {
+            this.completeTask(taskId, points);
+        } else {
+            this.showToast('Неверно.', 'error');
+        }
+    }
+
+    // Сопоставление
+    initMatchingTask(task) {
+        const container = document.getElementById(`match-${task.id}`);
+        let selectedLeft = null;
+        
+        container.querySelectorAll('.match-item').forEach(item => {
+            item.onclick = () => {
+                if (item.classList.contains('matched')) return;
+                
+                // Сброс выделения в колонке
+                item.parentElement.querySelectorAll('.match-item').forEach(i => i.classList.remove('selected'));
+                
+                item.classList.add('selected');
+                
+                if (item.dataset.side === 'left') {
+                    selectedLeft = item;
+                } else if (selectedLeft) {
+                    // Проверка пары
+                    if (selectedLeft.dataset.id === item.dataset.id) {
+                        item.classList.add('matched');
+                        selectedLeft.classList.add('matched');
+                        selectedLeft = null;
+                        this.showToast('Пара найдена!', 'success');
+                    } else {
+                        this.showToast('Неверная пара', 'error');
+                        setTimeout(() => {
+                            item.classList.remove('selected');
+                            if(selectedLeft) selectedLeft.classList.remove('selected');
+                            selectedLeft = null;
+                        }, 500);
+                    }
+                }
+            };
+        });
+    }
+
+    checkMatching(taskId, totalPairs, points) {
+        const matched = document.querySelectorAll(`#match-${taskId} .matched`).length;
+        if (matched === totalPairs * 2) {
+            this.completeTask(taskId, points);
+        } else {
+            this.showToast(`Найдено ${matched/2} из ${totalPairs}. Соберите все!`, 'error');
+        }
+    }
+
+    // Интерактивный график
+    initInteractiveTask(task) {
+        const canvas = document.getElementById(`canvas-${task.id}`);
+        const ctx = canvas.getContext('2d');
+        const point = document.getElementById(`point-${task.id}`);
+        const container = document.getElementById(`graph-${task.id}`);
+        const config = task.config;
+
+        // Настройка размера канваса
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+        const W = canvas.width;
+        const H = canvas.height;
+        const padding = 40;
+
+        // Функция отрисовки
+        const draw = () => {
+            ctx.clearRect(0, 0, W, H);
+            ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--text-color');
+            ctx.lineWidth = 2;
+
+            // Оси
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, H - padding); // Y
+            ctx.lineTo(W - padding, H - padding); // X
+            ctx.stroke();
+
+            // График
+            ctx.beginPath();
+            ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--primary-color');
+            
+            if (config.type === 'linear') {
+                // Линия от (0, maxY) до (maxX, 0)
+                const x1 = padding;
+                const y1 = H - padding - (config.maxY / 10) * (H - 2*padding); // Масштабирование
+                // Упрощенно: пусть 1 ед = (W-2p)/maxX
+                const scaleX = (W - 2*padding) / config.maxX;
+                const scaleY = (H - 2*padding) / config.maxY;
+                
+                ctx.moveTo(padding, H - padding); // (0,0) визуально внизу слева, но в экономике часто (0, maxY) сверху
+                // Рисуем от (0, maxY) до (maxX, 0)
+                ctx.lineTo(padding, H - padding - config.maxY * scaleY); 
+                ctx.lineTo(padding + config.maxX * scaleX, H - padding);
+            } else if (config.type === 'convex') {
+                // Выпуклая кривая (полуэллипс или парабола)
+                const scaleX = (W - 2*padding) / config.maxX;
+                const scaleY = (H - 2*padding) / config.maxY;
+                ctx.moveTo(padding, H - padding - config.maxY * scaleY);
+                // Квадратичная Безье или просто цикл
+                for (let x = 0; x <= config.maxX; x+=0.5) {
+                    // Формула эллипса: (x/a)^2 + (y/b)^2 = 1 => y = b * sqrt(1 - (x/a)^2)
+                    const y = config.maxY * Math.sqrt(1 - Math.pow(x/config.maxX, 2));
+                    ctx.lineTo(padding + x * scaleX, H - padding - y * scaleY);
+                }
+            } else if (config.type === 'parabola') {
+                 // Парабола для полезности
+                 const scaleX = (W - 2*padding) / config.maxX;
+                 const scaleY = (H - 2*padding) / config.maxY;
+                 ctx.moveTo(padding, H - padding);
+                 for (let x = 0; x <= config.maxX; x+=0.5) {
+                     // Y = -(X-5)^2 + 25 (пример из задачи)
+                     // Нужно адаптировать под общие координаты, но здесь хардкод под задачу 3 модуля 3
+                     // Для универсальности просто рисуем дугу
+                     const y = config.maxY * (1 - Math.pow((x - config.maxX/2)/(config.maxX/2), 2));
+                     ctx.lineTo(padding + x * scaleX, H - padding - y * scaleY);
+                 }
+            }
+            ctx.stroke();
+
+            // Сетка и подписи
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-color');
+            ctx.font = '12px Arial';
+            ctx.fillText("0", padding - 15, H - padding + 15);
+            ctx.fillText(config.maxX, W - padding - 15, H - padding + 15);
+            ctx.fillText(config.maxY, padding - 25, padding + 5);
+        };
+
+        draw();
+
+        // Drag & Drop логика
+        let isDragging = false;
+
+        const updatePointPos = (clientX, clientY) => {
+            const rect = container.getBoundingClientRect();
+            let x = clientX - rect.left;
+            let y = clientY - rect.top;
+
+            // Ограничения
+            if (x < padding) x = padding;
+            if (x > W - padding) x = W - padding;
+            if (y < padding) y = padding;
+            if (y > H - padding) y = H - padding;
+
+            point.style.left = x + 'px';
+            point.style.top = y + 'px';
+        };
+
+        point.addEventListener('mousedown', () => isDragging = true);
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                updatePointPos(e.clientX, e.clientY);
+            }
+        });
+        
+        // Тач события для мобильных
+        point.addEventListener('touchstart', () => isDragging = true);
+        window.addEventListener('touchend', () => isDragging = false);
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                e.preventDefault(); 
+                updatePointPos(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, {passive: false});
+    }
+
+    checkInteractive(taskId, targetX, targetY, tolerance, points) {
+        const point = document.getElementById(`point-${task.id}`);
+        const container = document.getElementById(`graph-${task.id}`);
+        const canvas = document.getElementById(`canvas-${task.id}`);
+        
+        const rect = container.getBoundingClientRect();
+        const pLeft = parseFloat(point.style.left);
+        const pTop = parseFloat(point.style.top);
+        
+        const W = canvas.width;
+        const H = canvas.height;
+        const padding = 40;
+        
+        // Обратное преобразование координат экрана в данные
+        // X_data = (x_screen - padding) / scaleX
+        const scaleX = (W - 2*padding) / 10; // Предполагаем макс 10 для простоты или берем из конфига
+        // В конфиге у нас maxX. 
+        // Но в функции отрисовки я указал жестко 10 или config.maxX.
+        // Возьмем config текущего модуля
+        const mod = courseData.modules.find(m => m.id === this.currentModuleId);
+        const taskConf = mod.tasks.find(t => t.id === taskId).config;
+        
+        const realScaleX = (W - 2*padding) / taskConf.maxX;
+        const realScaleY = (H - 2*padding) / taskConf.maxY;
+        
+        const currentX = (pLeft - padding) / realScaleX;
+        const currentY = ((H - padding) - pTop) / realScaleY; // Y инвертирован
+        
+        // Проверка расстояния
+        const dist = Math.sqrt(Math.pow(currentX - targetX, 2) + Math.pow(currentY - targetY, 2));
+        
+        if (dist <= tolerance) {
+            this.completeTask(taskId, points);
+        } else {
+            this.showToast(`Точка далеко! Цель: (${targetX}, ${targetY.toFixed(1)}). Сейчас: (${currentX.toFixed(1)}, ${currentY.toFixed(1)})`, 'error');
+        }
+    }
+
+    // --- Магазин и Профиль ---
+    renderShop() {
+        const container = document.getElementById('shop-container');
+        container.innerHTML = '';
+        courseData.shop.forEach(item => {
+            const owned = this.state.inventory.includes(item.id);
+            const canBuy = this.state.score >= item.price;
+            
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.opacity = owned ? '0.7' : '1';
+            card.innerHTML = `
+                <div style="font-size: 3rem; text-align:center; margin-bottom:1rem;">${item.icon}</div>
+                <h3>${item.name}</h3>
+                <p>${item.description}</p>
+                <div class="card-meta">
+                    <span style="font-weight:bold; color:var(--accent-color);">${item.price} 💰</span>
+                    <button class="btn" style="width:auto; padding:0.5rem 1rem;" 
+                        ${owned ? 'disabled' : ''} 
+                        ${!owned && !canBuy ? 'disabled' : ''}
+                        onclick="app.buyItem('${item.id}')">
+                        ${owned ? 'Куплено' : (canBuy ? 'Купить' : 'Не хватает')}
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    buyItem(itemId) {
+        const item = courseData.shop.find(i => i.id === itemId);
+        if (!item || this.state.inventory.includes(itemId)) return;
+        
+        if (this.state.score >= item.price) {
+            this.state.score -= item.price;
+            this.state.inventory.push(itemId);
+            
+            if (item.type === 'theme') {
+                this.applyTheme(item.class);
+            }
+            
+            this.saveState();
+            this.renderShop();
+            this.showToast(`Вы купили ${item.name}!`, 'success');
+        }
+    }
+
+    applyTheme(themeClass) {
+        document.body.className = themeClass;
+        this.state.currentTheme = themeClass;
+        // Если это не стандартная светлая (которая без класса или theme-light), то сохраняем
+        // В моем коде light - это отсутствие классов кроме базы, но для удобства добавим класс
+        if (themeClass === 'theme_light') {
+            document.body.className = '';
+        }
+        this.saveState();
+    }
+
     renderProfile() {
         const totalTasks = courseData.modules.reduce((sum, m) => sum + m.tasks.length, 0);
-        const completedTasks = Object.keys(this.state.completedTasks).filter(
-            id => this.state.completedTasks[id].completed
-        ).length;
+        const completedCount = Object.keys(this.state.completedTasks).length;
+        const progress = Math.round((completedCount / totalTasks) * 100);
+
+        document.getElementById('total-score').innerText = this.state.score;
+        document.getElementById('total-progress').innerText = `${progress}%`;
+
+        const invContainer = document.getElementById('inventory-container');
+        invContainer.innerHTML = '';
         
-        const overallProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        // Добавляем светлую тему по умолчанию в инвентарь для отображения
+        const allItems = [...courseData.shop, { id: 'theme_light', type: 'theme', name: 'Светлая тема', icon: '☀️', class: 'theme_light' }];
 
-        document.getElementById('profileScore').textContent = this.state.score;
-        document.getElementById('profileProgress').textContent = `${overallProgress.toFixed(0)}%`;
-        document.getElementById('profileTasksCompleted').textContent = `${completedTasks}/${totalTasks}`;
-
-        const inventoryList = document.getElementById('inventoryList');
-        inventoryList.innerHTML = '';
-
-        if (this.state.purchasedItems.length === 0) {
-            inventoryList.innerHTML = '<p style="color: var(--text-secondary);">Пока нет покупок</p>';
-        } else {
-            this.state.purchasedItems.forEach(itemId => {
-                const item = courseData.shop.find(i => i.id === itemId);
-                if (item) {
-                    const el = document.createElement('div');
-                    el.className = 'inventory-item';
-                    el.innerHTML = `<span>${item.icon}</span><span>${item.name}</span>`;
-                    inventoryList.appendChild(el);
+        allItems.forEach(item => {
+            if (this.state.inventory.includes(item.id)) {
+                const div = document.createElement('div');
+                div.className = `inventory-item ${this.state.currentTheme === item.class ? 'active-theme' : ''}`;
+                if (item.id === 'theme_light' && this.state.currentTheme === '') div.classList.add('active-theme');
+                
+                div.innerHTML = `<div style="font-size:2rem;">${item.icon}</div><div>${item.name}</div>`;
+                
+                if (item.type === 'theme') {
+                    div.onclick = () => {
+                        this.applyTheme(item.class);
+                        this.renderProfile(); // Перерисовать чтобы обновить активный класс
+                        this.showToast('Тема применена', 'success');
+                    };
                 }
-            });
-        }
+                invContainer.appendChild(div);
+            }
+        });
+
+        document.getElementById('reset-progress-btn').onclick = () => {
+            if(confirm('Вы уверены? Весь прогресс будет удален.')) {
+                localStorage.removeItem('olympEconState');
+                location.reload();
+            }
+        };
     }
 
+    // --- Утилиты ---
     updateUI() {
-        document.getElementById('totalScore').textContent = this.state.score;
-        this.renderModules();
-        this.renderShop();
+        document.getElementById('mini-score').innerText = this.state.score;
+    }
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.style.borderLeftColor = type === 'success' ? 'var(--accent-color)' : '#ef4444';
+        toast.innerHTML = `<span>${type === 'success' ? '✅' : '⚠️'}</span> <span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 }
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new EconOlympApp();
-});
+// Запуск приложения
+const app = new EconomyApp();
