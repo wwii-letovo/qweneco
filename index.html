@@ -31,6 +31,7 @@
         <!-- Экран Модулей -->
         <section id="view-modules" class="view active">
             <h1 class="page-title">Программа обучения</h1>
+            <p class="subtitle">Выберите модуль для начала изучения темы.</p>
             <div class="modules-grid" id="modules-container">
                 <!-- Карточки генерируются JS -->
             </div>
@@ -39,8 +40,10 @@
         <!-- Экран Магазина -->
         <section id="view-shop" class="view">
             <h1 class="page-title">Магазин улучшений</h1>
-            <p class="subtitle">Покупайте темы оформления и достижения за баллы.</p>
-            <div class="shop-grid" id="shop-container"></div>
+            <p class="subtitle">Покупайте темы оформления и достижения за заработанные баллы.</p>
+            <div class="shop-grid" id="shop-container">
+                <!-- Товары генерируются JS -->
+            </div>
         </section>
 
         <!-- Экран Профиля -->
@@ -64,7 +67,9 @@
                 <div class="inventory-section">
                     <h3>Ваши покупки и темы</h3>
                     <p class="hint">Нажмите на тему, чтобы применить её.</p>
-                    <div class="inventory-grid" id="inventory-container"></div>
+                    <div class="inventory-grid" id="inventory-container">
+                        <!-- Инвентарь -->
+                    </div>
                 </div>
 
                 <div class="reset-section">
@@ -75,7 +80,9 @@
 
         <!-- Экран Деталей Модуля -->
         <section id="view-module-detail" class="view">
-            <button class="btn btn-back" onclick="app.navigate('modules')">← Назад к модулям</button>
+            <div class="module-nav-header">
+                <button class="btn btn-back" onclick="app.navigate('modules')">← Назад к модулям</button>
+            </div>
             
             <div class="module-header">
                 <h1 id="detail-title">Название модуля</h1>
@@ -91,17 +98,25 @@
             </div>
 
             <div class="tab-content">
+                <!-- Блок Теории -->
                 <div id="tab-theory" class="content-block active">
-                    <div id="theory-container" class="accordion"></div>
+                    <div id="theory-container" class="accordion">
+                        <!-- Секции теории -->
+                    </div>
                 </div>
+
+                <!-- Блок Заданий -->
                 <div id="tab-tasks" class="content-block">
-                    <div id="tasks-container"></div>
+                    <div id="tasks-container">
+                        <!-- Список заданий -->
+                    </div>
                 </div>
             </div>
         </section>
 
     </main>
 
+    <!-- Уведомления -->
     <div id="toast-container"></div>
 
     <script src="data.js"></script>
