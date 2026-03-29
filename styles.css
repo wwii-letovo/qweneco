@@ -5,6 +5,7 @@
     --primary-color: #3b82f6;
     --primary-hover: #2563eb;
     --accent-color: #10b981;
+    --error-color: #ef4444;
     --border-color: #e5e7eb;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --radius: 12px;
@@ -12,6 +13,7 @@
     --transition: all 0.3s ease;
 }
 
+/* ТЕМЫ */
 body.theme-dark {
     --bg-color: #111827;
     --text-color: #f3f4f6;
@@ -86,9 +88,9 @@ body {
     background: none; border: none; color: var(--text-color);
     font-size: 1rem; cursor: pointer; padding: 0.5rem 1rem;
     border-radius: var(--radius); transition: var(--transition);
-    opacity: 0.7; font-weight: 500;
+    opacity: 0.7;
 }
-.nav-btn:hover, .nav-btn.active { background-color: var(--primary-color); color: white; opacity: 1; transform: translateY(-2px); }
+.nav-btn:hover, .nav-btn.active { background-color: var(--primary-color); color: white; opacity: 1; }
 .user-stats-mini { font-weight: bold; color: var(--accent-color); font-size: 1.2rem; }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
@@ -126,47 +128,28 @@ body {
 .progress-bar-bg { width: 100%; height: 8px; background: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 0.5rem; }
 .progress-bar-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.5s ease; }
 
-/* Красивые кнопки */
+/* КНОПКИ */
 .btn {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-    color: white; border: none;
+    background-color: var(--primary-color); color: white; border: none;
     padding: 0.75rem 1.5rem; border-radius: var(--radius); cursor: pointer;
     font-weight: 600; transition: var(--transition); width: 100%;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.9rem;
+    font-family: inherit; font-size: 1rem;
 }
-.btn:hover:not(:disabled) { 
-    transform: translateY(-2px); 
-    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
-    filter: brightness(1.1);
-}
-.btn:active:not(:disabled) { transform: translateY(0); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+.btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-/* Специальная кнопка сброса */
+.btn-back {
+    background: transparent; color: var(--text-color); border: 1px solid var(--border-color);
+    width: auto; margin-bottom: 1rem; display: inline-block;
+}
+.btn-back:hover { background: var(--bg-color); }
+
 .btn-danger {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    margin-top: 2rem;
-    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+    background-color: #ef4444; margin-top: 2rem;
 }
-.btn-danger:hover:not(:disabled) {
-    box-shadow: 0 6px 8px rgba(239, 68, 68, 0.3);
-}
+.btn-danger:hover { background-color: #dc2626; }
 
-/* Кнопка назад */
-.back-btn {
-    background: transparent; border: 2px solid var(--border-color);
-    color: var(--text-color); padding: 0.5rem 1rem;
-    border-radius: var(--radius); cursor: pointer;
-    transition: var(--transition); font-weight: 600;
-    margin-bottom: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
-}
-.back-btn:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.05);
-}
-
+/* Детали модуля */
 .module-header { margin-bottom: 2rem; }
 .module-badges { display: flex; gap: 1rem; margin-top: 1rem; }
 .badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
@@ -178,27 +161,26 @@ body {
     background: none; border: none; padding: 0.75rem 1.5rem;
     font-size: 1rem; color: var(--text-color); cursor: pointer;
     border-bottom: 2px solid transparent; margin-bottom: -2px; transition: var(--transition);
-    font-weight: 500;
 }
-.tab-btn.active { border-bottom-color: var(--primary-color); color: var(--primary-color); }
+.tab-btn.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: bold; }
 .content-block { display: none; }
 .content-block.active { display: block; animation: fadeIn 0.3s; }
 
+/* Аккордеон */
 .accordion-item { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden; background: var(--card-bg); }
 .accordion-header {
     padding: 1rem; background: rgba(0,0,0,0.02); cursor: pointer;
     display: flex; justify-content: space-between; align-items: center; font-weight: 600;
-    transition: background 0.2s;
 }
-.accordion-header:hover { background: rgba(0,0,0,0.05); }
-.accordion-content { padding: 1rem; display: none; border-top: 1px solid var(--border-color); line-height: 1.8; }
+.accordion-content { padding: 1.5rem; display: none; border-top: 1px solid var(--border-color); font-size: 1.05rem; line-height: 1.8; }
 .accordion-content.open { display: block; }
 .formula-box {
     background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 8px;
     font-family: monospace; text-align: center; margin: 1rem 0; border-left: 4px solid var(--primary-color);
-    font-size: 1.1rem;
+    color: var(--text-color);
 }
 
+/* Задания */
 .task-card {
     background: var(--card-bg); border: 1px solid var(--border-color);
     border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
@@ -211,34 +193,32 @@ body {
     border: 1px solid var(--border-color); border-radius: 8px;
     cursor: pointer; transition: var(--transition);
 }
-.task-options label:hover { background: rgba(0,0,0,0.02); border-color: var(--primary-color); }
+.task-options label:hover { background: rgba(0,0,0,0.02); }
 .task-options input[type="radio"] { margin-right: 10px; }
 
 input[type="number"], input[type="text"] {
     width: 100%; padding: 0.75rem; border: 1px solid var(--border-color);
     border-radius: 8px; background: var(--bg-color); color: var(--text-color);
-    margin-bottom: 1rem; font-size: 1rem; outline: none; transition: border 0.2s;
+    margin-bottom: 1rem; font-size: 1rem;
 }
-input:focus { border-color: var(--primary-color); }
 
+/* Сопоставление */
 .matching-container { display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
 .matching-col { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 150px; }
 .match-item {
     padding: 0.75rem; background: var(--bg-color); border: 1px solid var(--border-color);
     border-radius: 8px; cursor: pointer; text-align: center; user-select: none;
-    transition: all 0.2s;
 }
-.match-item:hover { transform: scale(1.02); }
-.match-item.selected { border-color: var(--primary-color); background: rgba(59, 130, 246, 0.1); color: var(--primary-color); font-weight: bold; }
+.match-item.selected { border-color: var(--primary-color); background: rgba(59, 130, 246, 0.1); }
 .match-item.matched { border-color: var(--accent-color); background: rgba(16, 185, 129, 0.1); opacity: 0.6; pointer-events: none; }
 
+/* График */
 .graph-container {
     position: relative; width: 100%; max-width: 500px; height: 300px;
     margin: 2rem auto; border: 2px solid var(--border-color);
     background: var(--bg-color); border-radius: 8px; overflow: hidden;
 }
 canvas { display: block; width: 100%; height: 100%; }
-.graph-controls { text-align: center; margin-top: 1rem; }
 .drag-point {
     position: absolute; width: 20px; height: 20px;
     background: var(--primary-color); border: 2px solid white;
@@ -248,11 +228,11 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 .drag-point:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); }
 
+/* Профиль */
 .profile-card { background: var(--card-bg); padding: 2rem; border-radius: var(--radius); box-shadow: var(--shadow); }
 .profile-header { display: flex; align-items: center; gap: 2rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 2rem; }
 .avatar { font-size: 4rem; }
 .stats-big { display: flex; gap: 3rem; }
-.stat-item { display: flex; flex-direction: column; }
 .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary-color); }
 .stat-label { font-size: 0.9rem; opacity: 0.7; }
 .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
@@ -261,14 +241,14 @@ canvas { display: block; width: 100%; height: 100%; }
     text-align: center; cursor: pointer; transition: var(--transition);
 }
 .inventory-item:hover { transform: scale(1.02); }
-.inventory-item.active-theme { border-color: var(--accent-color); background: rgba(16, 185, 129, 0.1); font-weight: bold; color: var(--accent-color); }
+.inventory-item.active-theme { border-color: var(--accent-color); background: rgba(16, 185, 129, 0.1); font-weight: bold; }
 
 #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
 .toast {
     background: var(--card-bg); color: var(--text-color);
     padding: 1rem 1.5rem; border-radius: 8px; margin-top: 10px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.2); border-left: 4px solid var(--accent-color);
-    animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; font-weight: 500;
+    animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px;
 }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
