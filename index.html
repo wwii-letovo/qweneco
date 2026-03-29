@@ -31,17 +31,18 @@
         <!-- Экран Модулей -->
         <section id="view-modules" class="view active">
             <h1 class="page-title">Программа обучения</h1>
+            <p class="subtitle">Выберите тему для изучения теории и выполнения заданий.</p>
             <div class="modules-grid" id="modules-container">
-                <!-- Карточки модулей -->
+                <!-- Карточки генерируются JS -->
             </div>
         </section>
 
         <!-- Экран Магазина -->
         <section id="view-shop" class="view">
             <h1 class="page-title">Магазин улучшений</h1>
-            <p class="subtitle">Покупайте темы оформления и достижения за баллы.</p>
+            <p class="subtitle">Покупайте темы оформления и достижения за заработанные баллы.</p>
             <div class="shop-grid" id="shop-container">
-                <!-- Товары -->
+                <!-- Товары генерируются JS -->
             </div>
         </section>
 
@@ -67,19 +68,21 @@
                     <h3>Ваши покупки и темы</h3>
                     <p class="hint">Нажмите на тему, чтобы применить её.</p>
                     <div class="inventory-grid" id="inventory-container">
-                        <!-- Инвентарь -->
+                        <!-- Инвентарь генерируется JS -->
                     </div>
                 </div>
 
                 <div class="reset-section">
-                    <button id="reset-progress-btn" class="btn-danger">Сбросить весь прогресс</button>
+                    <button id="reset-progress-btn" class="btn btn-danger">Сбросить весь прогресс</button>
                 </div>
             </div>
         </section>
 
         <!-- Экран Деталей Модуля -->
         <section id="view-module-detail" class="view">
-            <button class="back-btn" onclick="app.navigate('modules')">← Назад к модулям</button>
+            <div class="module-nav-header">
+                <button class="btn btn-back" onclick="app.navigate('modules')">← Назад к модулям</button>
+            </div>
             
             <div class="module-header">
                 <h1 id="detail-title">Название модуля</h1>
@@ -95,17 +98,25 @@
             </div>
 
             <div class="tab-content">
+                <!-- Блок Теории -->
                 <div id="tab-theory" class="content-block active">
-                    <div id="theory-container" class="accordion"></div>
+                    <div id="theory-container" class="accordion">
+                        <!-- Секции теории -->
+                    </div>
                 </div>
+
+                <!-- Блок Заданий -->
                 <div id="tab-tasks" class="content-block">
-                    <div id="tasks-container"></div>
+                    <div id="tasks-container">
+                        <!-- Список заданий -->
+                    </div>
                 </div>
             </div>
         </section>
 
     </main>
 
+    <!-- Уведомления -->
     <div id="toast-container"></div>
 
     <script src="data.js"></script>
