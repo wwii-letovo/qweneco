@@ -2,8 +2,7 @@ class EconomyApp {
     constructor() {
         this.state = {
             score: 0,
-            completedTasks: {}, 
-            failedTasks: {}, // Храним ID задач, где пользователь ошибся
+            completedTasks: {}, // { taskId: { completed: true, points: number } }
             inventory: ['theme_light'],
             currentTheme: 'theme_light',
             extraAnimations: false
@@ -18,14 +17,6 @@ class EconomyApp {
         this.setupNavigation();
         this.renderModules();
         this.updateUI();
-        
-        // Обработчик сброса
-        document.getElementById('reset-progress-btn').addEventListener('click', () => {
-            if(confirm('Вы уверены? Весь прогресс будет удален.')) {
-                localStorage.removeItem('olympEconState');
-                location.reload();
-            }
-        });
     }
 
     loadState() {
@@ -43,7 +34,7 @@ class EconomyApp {
     addScore(points) {
         this.state.score += points;
         this.saveState();
-        this.showToast(`+${points} баллов!`, 'success');
+        if (points > 0) this.showToast(`+${points} баллов!`, 'success');
     }
 
     setupNavigation() {
@@ -75,11 +66,16 @@ class EconomyApp {
         const container = document.getElementById('modules-container');
         container.innerHTML = '';
 
+        if (!courseData.modules || courseData.modules.length === 0) {
+            container.innerHTML = '<p>Ошибка загрузки данных модулей.</p>';
+            return;
+        }
+
         courseData.modules.forEach(mod => {
             const totalTasks = mod.tasks.length;
             const completedCount = mod.tasks.filter(t => this.state.completedTasks[t.id]).length;
-            const progress = Math.round((completedCount / totalTasks) * 100);
-            const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? t.points : 0), 0);
+            const progress = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+            const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? this.state.completedTasks[t.id].points : 0), 0);
 
             const card = document.createElement('div');
             card.className = 'card';
@@ -121,7 +117,7 @@ class EconomyApp {
         // Теория
         const theoryContainer = document.getElementById('theory-container');
         theoryContainer.innerHTML = '';
-        mod.theory.forEach((section, idx) => {
+        mod.theory.forEach((section) => {
             const item = document.createElement('div');
             item.className = 'accordion-item';
             item.innerHTML = `
@@ -140,19 +136,22 @@ class EconomyApp {
         const tasksContainer = document.getElementById('tasks-container');
         tasksContainer.innerHTML = '';
         mod.tasks.forEach(task => {
-            const isCompleted = this.state.completedTasks[task.id];
-            const isFailed = this.state.failedTasks[task.id];
+            const taskStatus = this.state.completedTasks[task.id];
+            const isCompleted = !!taskStatus;
             
             const taskEl = document.createElement('div');
             taskEl.className = 'task-card';
+            taskEl.id = `task-card-${task.id}`;
             
             let statusHtml = '';
             if (isCompleted) {
-                statusHtml = `<div style="color:var(--accent-color); font-weight:bold;">✅ Выполнено (+${task.points})</div>`;
-            } else if (isFailed) {
-                statusHtml = `<div style="color:var(--error-color); font-weight:bold;">❌ Ошибка. Правильный ответ показан ниже.</div>`;
+                if (taskStatus.points > 0) {
+                    statusHtml = `<span class="task-points">✅ ${taskStatus.points} получено</span>`;
+                } else {
+                    statusHtml = `<span class="task-points" style="color:var(--error-color)">❌ Ошибка (0 баллов)</span>`;
+                }
             } else {
-                statusHtml = `<span class="task-points">?</span>`;
+                statusHtml = `<span class="task-points">?${task.points}</span>`;
             }
 
             taskEl.innerHTML = `
@@ -161,16 +160,14 @@ class EconomyApp {
                     ${statusHtml}
                 </div>
                 <div class="task-body">
-                    ${this.renderTaskBody(task, isCompleted, isFailed)}
+                    ${isCompleted ? this.renderCompletedTask(task) : this.renderTaskBody(task)}
                 </div>
             `;
             tasksContainer.appendChild(taskEl);
             
-            if (task.type === 'interactive' && !isCompleted && !isFailed) {
-                setTimeout(() => this.initInteractiveTask(task), 100);
-            }
-            if (task.type === 'matching' && !isCompleted && !isFailed) {
-                setTimeout(() => this.initMatchingTask(task), 100);
+            if (!isCompleted) {
+                if (task.type === 'interactive') setTimeout(() => this.initInteractiveTask(task), 100);
+                if (task.type === 'matching') this.initMatchingTask(task);
             }
         });
 
@@ -188,8 +185,8 @@ class EconomyApp {
     updateModuleStats(mod) {
         const totalTasks = mod.tasks.length;
         const completedCount = mod.tasks.filter(t => this.state.completedTasks[t.id]).length;
-        const progress = Math.round((completedCount / totalTasks) * 100);
-        const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? t.points : 0), 0);
+        const progress = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+        const moduleScore = mod.tasks.reduce((sum, t) => sum + (this.state.completedTasks[t.id] ? this.state.completedTasks[t.id].points : 0), 0);
 
         document.getElementById('detail-progress').innerText = `${progress}%`;
         document.getElementById('detail-score').innerText = moduleScore;
@@ -201,26 +198,33 @@ class EconomyApp {
         header.querySelector('span').innerText = content.classList.contains('open') ? '▲' : '▼';
     }
 
-    renderTaskBody(task, isCompleted, isFailed) {
-        if (isCompleted || isFailed) {
-            let answerText = "";
-            if (task.type === 'test') answerText = `Правильный ответ: ${task.options[task.correct]}`;
-            if (task.type === 'number') answerText = `Правильный ответ: ${task.correct}`;
-            if (task.type === 'fill') answerText = `Правильный ответ: ${task.variants[0]}`;
-            if (task.type === 'matching') answerText = "Смотрите пары выше.";
-            if (task.type === 'interactive') answerText = `Цель была: X=${task.config.targetX}, Y=${task.config.targetY}`;
-
-            return `
-                <div style="padding:1rem; background:rgba(239, 68, 68, 0.1); border-radius:8px; border:1px solid var(--error-color);">
-                    <p style="margin-bottom:0.5rem; font-weight:bold;">Задание заблокировано.</p>
-                    <p>${answerText}</p>
-                </div>
-            `;
+    renderCompletedTask(task) {
+        const status = this.state.completedTasks[task.id];
+        const success = status.points > 0;
+        let html = `<div style="padding:1rem; border-radius:8px; background:${success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${success ? 'var(--accent-color)' : 'var(--error-color)'};">
+            ${success ? 'Задание выполнено верно!' : 'Допущена ошибка. Правильный ответ показан ниже.'}
+        </div>`;
+        
+        // Показываем правильный ответ
+        if (task.type === 'test') {
+            html += `<p style="margin-top:10px;"><strong>Правильный ответ:</strong> ${task.options[task.correct]}</p>`;
+        } else if (task.type === 'number' || task.type === 'fill') {
+            html += `<p style="margin-top:10px;"><strong>Правильный ответ:</strong> ${task.correct}</p>`;
+        } else if (task.type === 'matching') {
+            html += `<p style="margin-top:10px;"><strong>Правильные пары показаны в задании.</strong></p>`;
+            // Можно добавить рендер правильных пар
+        } else if (task.type === 'interactive') {
+            html += `<p style="margin-top:10px;"><strong>Цель была:</strong> X=${task.config.targetX}, Y=${task.config.targetY}</p>`;
         }
+        return html;
+    }
 
+    renderTaskBody(task) {
         switch (task.type) {
             case 'test':
                 let optionsHtml = '';
+                // Перемешиваем варианты для красоты, но сохраняем индекс правильного
+                // Для простоты оставим порядок как в данных, но можно добавить shuffle
                 task.options.forEach((opt, idx) => {
                     optionsHtml += `<label><input type="radio" name="${task.id}" value="${idx}"> ${opt}</label>`;
                 });
@@ -241,7 +245,7 @@ class EconomyApp {
                 return `
                     <p>${task.question}</p>
                     <input type="text" id="input-${task.id}" placeholder="Введите слово">
-                    <button class="btn" style="margin-top:1rem;" onclick="app.checkFill('${task.id}', ${JSON.stringify(task.variants).replace(/"/g, "'")}, ${task.points})">Проверить</button>
+                    <button class="btn" style="margin-top:1rem;" onclick="app.checkFill('${task.id}', ${JSON.stringify(task.variants)}, ${task.points})">Проверить</button>
                 `;
 
             case 'matching':
@@ -249,13 +253,15 @@ class EconomyApp {
                 const shuffledPairs = [...task.pairs].sort(() => Math.random() - 0.5);
                 let leftHtml = '', rightHtml = '';
                 
-                task.pairs.forEach((pair, idx) => {
-                    leftHtml += `<div class="match-item" data-id="${idx}" data-side="left">${pair.left}</div>`;
+                // Левая колонка (вопросы) - фиксированный порядок или тоже рандом
+                const shuffledLeft = [...task.pairs].sort(() => Math.random() - 0.5);
+
+                shuffledLeft.forEach((pair, idx) => {
+                    leftHtml += `<div class="match-item" data-id="${pair.left}" data-side="left">${pair.left}</div>`;
                 });
-                shuffledPairs.forEach((pair) => {
-                    // Находим оригинальный ID для пары
-                    const originalIdx = task.pairs.findIndex(p => p.left === pair.left && p.right === pair.right);
-                    rightHtml += `<div class="match-item" data-id="${originalIdx}" data-side="right">${pair.right}</div>`;
+                
+                shuffledPairs.forEach((pair, idx) => {
+                    rightHtml += `<div class="match-item" data-id="${pair.right}" data-side="right">${pair.right}</div>`;
                 });
 
                 return `
@@ -265,6 +271,7 @@ class EconomyApp {
                         <div class="matching-col">${rightHtml}</div>
                     </div>
                     <button class="btn" style="margin-top:1rem;" onclick="app.checkMatching('${task.id}', ${task.pairs.length}, ${task.points})">Проверить</button>
+                    <div id="match-status-${task.id}" style="margin-top:0.5rem; font-weight:bold;"></div>
                 `;
 
             case 'interactive':
@@ -283,9 +290,10 @@ class EconomyApp {
         }
     }
 
+    // --- Проверка заданий ---
     completeTask(taskId, points) {
-        if (!this.state.completedTasks[taskId] && !this.state.failedTasks[taskId]) {
-            this.state.completedTasks[taskId] = true;
+        if (!this.state.completedTasks[taskId]) {
+            this.state.completedTasks[taskId] = { completed: true, points: points };
             this.addScore(points);
             this.saveState();
             if (this.currentModuleId) {
@@ -296,44 +304,47 @@ class EconomyApp {
         }
     }
 
-    failTask(taskId) {
-        if (!this.state.completedTasks[taskId] && !this.state.failedTasks[taskId]) {
-            this.state.failedTasks[taskId] = true;
-            this.saveState();
-            this.showToast('Ошибка! Задание заблокировано.', 'error');
-            if (this.currentModuleId) {
-                this.renderModuleDetail(this.currentModuleId); 
-            }
-        }
-    }
-
     checkTest(taskId, correctIdx, points) {
         const selected = document.querySelector(`input[name="${taskId}"]:checked`);
         if (!selected) return this.showToast('Выберите вариант!', 'error');
+        
         if (parseInt(selected.value) === correctIdx) {
             this.completeTask(taskId, points);
         } else {
-            this.failTask(taskId);
+            // Ошибка: блокируем задание, показываем ответ, 0 баллов
+            this.state.completedTasks[taskId] = { completed: true, points: 0 };
+            this.saveState();
+            this.showToast('Неверно! Задание закрыто.', 'error');
+            this.renderModuleDetail(this.currentModuleId);
         }
     }
 
     checkNumber(taskId, correct, tolerance, points) {
         const val = parseFloat(document.getElementById(`input-${taskId}`).value);
         if (isNaN(val)) return this.showToast('Введите число!', 'error');
+
         if (Math.abs(val - correct) <= tolerance) {
             this.completeTask(taskId, points);
         } else {
-            this.failTask(taskId);
+            this.state.completedTasks[taskId] = { completed: true, points: 0 };
+            this.saveState();
+            this.showToast('Неверный ответ! Задание закрыто.', 'error');
+            this.renderModuleDetail(this.currentModuleId);
         }
     }
 
-    checkFill(taskId, variantsStr, points) {
-        const variants = JSON.parse(variantsStr.replace(/'/g, '"'));
-        const val = document.getElementById(`input-${taskId}`).value.trim().toLowerCase();
+    checkFill(taskId, variants, points) {
+        const input = document.getElementById(`input-${taskId}`);
+        if (!input) return;
+        const val = input.value.trim().toLowerCase();
+        
         if (variants.includes(val)) {
             this.completeTask(taskId, points);
         } else {
-            this.failTask(taskId);
+            this.state.completedTasks[taskId] = { completed: true, points: 0 };
+            this.saveState();
+            this.showToast('Неверно! Задание закрыто.', 'error');
+            this.renderModuleDetail(this.currentModuleId);
         }
     }
 
@@ -342,21 +353,32 @@ class EconomyApp {
         if (!container) return;
         
         let selectedLeft = null;
-        
+        const matchesFound = new Set();
+
         container.querySelectorAll('.match-item').forEach(item => {
             item.onclick = () => {
                 if (item.classList.contains('matched')) return;
                 
-                item.parentElement.querySelectorAll('.match-item').forEach(i => i.classList.remove('selected'));
+                // Сброс выделения в своей колонке
+                const side = item.dataset.side;
+                container.querySelectorAll(`.match-item[data-side="${side}"]`).forEach(i => i.classList.remove('selected'));
+                
                 item.classList.add('selected');
                 
-                if (item.dataset.side === 'left') {
+                if (side === 'left') {
                     selectedLeft = item;
                 } else if (selectedLeft) {
+                    // Проверка пары
                     if (selectedLeft.dataset.id === item.dataset.id) {
                         item.classList.add('matched');
                         selectedLeft.classList.add('matched');
+                        matchesFound.add(item.dataset.id);
                         selectedLeft = null;
+                        
+                        if (matchesFound.size === task.pairs.length) {
+                            // Все найдено, но ждем нажатия кнопки проверки для начисления баллов
+                            // Или можно начислять сразу, но по ТЗ кнопка
+                        }
                     } else {
                         this.showToast('Неверная пара', 'error');
                         setTimeout(() => {
@@ -375,7 +397,7 @@ class EconomyApp {
         if (matched === totalPairs * 2) {
             this.completeTask(taskId, points);
         } else {
-            this.showToast(`Соберите все ${totalPairs} пар!`, 'error');
+            this.showToast(`Собрано ${matched/2} из ${totalPairs}. Нужно собрать все!`, 'error');
         }
     }
 
@@ -398,12 +420,14 @@ class EconomyApp {
             ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--text-color');
             ctx.lineWidth = 2;
 
+            // Оси
             ctx.beginPath();
             ctx.moveTo(padding, padding);
             ctx.lineTo(padding, H - padding);
             ctx.lineTo(W - padding, H - padding);
             ctx.stroke();
 
+            // График
             ctx.beginPath();
             ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--primary-color');
             
@@ -420,11 +444,11 @@ class EconomyApp {
                     ctx.lineTo(padding + x * scaleX, H - padding - y * scaleY);
                 }
             } else if (config.type === 'parabola') {
-                 ctx.moveTo(padding, H - padding);
-                 for (let x = 0; x <= config.maxX; x+=0.5) {
-                     const y = config.maxY * (1 - Math.pow((x - config.maxX/2)/(config.maxX/2), 2));
-                     ctx.lineTo(padding + x * scaleX, H - padding - y * scaleY);
-                 }
+                ctx.moveTo(padding, H - padding);
+                for (let x = 0; x <= config.maxX; x+=0.5) {
+                    const y = config.maxY * (1 - Math.pow((x - config.maxX/2)/(config.maxX/2), 2));
+                    ctx.lineTo(padding + x * scaleX, H - padding - y * scaleY);
+                }
             }
             ctx.stroke();
 
@@ -450,15 +474,22 @@ class EconomyApp {
             point.style.top = y + 'px';
         };
 
-        point.addEventListener('mousedown', () => isDragging = true);
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('mousemove', (e) => { if (isDragging) updatePointPos(e.clientX, e.clientY); });
-        
-        point.addEventListener('touchstart', () => isDragging = true);
-        window.addEventListener('touchend', () => isDragging = false);
-        window.addEventListener('touchmove', (e) => {
-            if (isDragging) { e.preventDefault(); updatePointPos(e.touches[0].clientX, e.touches[0].clientY); }
-        }, {passive: false});
+        const startDrag = (e) => { isDragging = true; e.preventDefault(); };
+        const endDrag = () => { isDragging = false; };
+        const moveDrag = (e) => {
+            if (isDragging) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                updatePointPos(clientX, clientY);
+            }
+        };
+
+        point.addEventListener('mousedown', startDrag);
+        point.addEventListener('touchstart', startDrag);
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+        window.addEventListener('mousemove', moveDrag);
+        window.addEventListener('touchmove', moveDrag, {passive: false});
     }
 
     checkInteractive(taskId, targetX, targetY, tolerance, points) {
@@ -466,6 +497,8 @@ class EconomyApp {
         const container = document.getElementById(`graph-${task.id}`);
         const canvas = document.getElementById(`canvas-${task.id}`);
         
+        if (!point || !container || !canvas) return;
+
         const rect = container.getBoundingClientRect();
         const pLeft = parseFloat(point.style.left);
         const pTop = parseFloat(point.style.top);
@@ -488,10 +521,14 @@ class EconomyApp {
         if (dist <= tolerance) {
             this.completeTask(taskId, points);
         } else {
-            this.failTask(taskId);
+            this.state.completedTasks[taskId] = { completed: true, points: 0 };
+            this.saveState();
+            this.showToast(`Ошибка! Точка далеко от цели. Задание закрыто.`, 'error');
+            this.renderModuleDetail(this.currentModuleId);
         }
     }
 
+    // --- Магазин и Профиль ---
     renderShop() {
         const container = document.getElementById('shop-container');
         container.innerHTML = '';
@@ -539,18 +576,18 @@ class EconomyApp {
     }
 
     applyTheme(themeClass) {
-        document.body.className = themeClass;
-        this.state.currentTheme = themeClass;
-        if (themeClass === 'theme_light') {
-            document.body.className = '';
+        document.body.className = '';
+        if (themeClass && themeClass !== 'theme_light') {
+            document.body.classList.add(themeClass);
         }
+        this.state.currentTheme = themeClass;
         this.saveState();
     }
 
     renderProfile() {
         const totalTasks = courseData.modules.reduce((sum, m) => sum + m.tasks.length, 0);
         const completedCount = Object.keys(this.state.completedTasks).length;
-        const progress = Math.round((completedCount / totalTasks) * 100);
+        const progress = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
         document.getElementById('total-score').innerText = this.state.score;
         document.getElementById('total-progress').innerText = `${progress}%`;
@@ -563,9 +600,10 @@ class EconomyApp {
         allItems.forEach(item => {
             if (this.state.inventory.includes(item.id)) {
                 const div = document.createElement('div');
-                div.className = `inventory-item ${this.state.currentTheme === item.class ? 'active-theme' : ''}`;
-                if (item.id === 'theme_light' && this.state.currentTheme === '') div.classList.add('active-theme');
+                const isActive = (item.id === 'theme_light' && this.state.currentTheme === 'theme_light') || 
+                                 (this.state.currentTheme === item.class);
                 
+                div.className = `inventory-item ${isActive ? 'active-theme' : ''}`;
                 div.innerHTML = `<div style="font-size:2rem;">${item.icon}</div><div>${item.name}</div>`;
                 
                 if (item.type === 'theme') {
@@ -578,6 +616,16 @@ class EconomyApp {
                 invContainer.appendChild(div);
             }
         });
+
+        const resetBtn = document.getElementById('reset-progress-btn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                if(confirm('Вы уверены? Весь прогресс и покупки будут удалены.')) {
+                    localStorage.removeItem('olympEconState');
+                    location.reload();
+                }
+            };
+        }
     }
 
     updateUI() {
@@ -587,12 +635,12 @@ class EconomyApp {
     showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.borderLeftColor = type === 'success' ? 'var(--accent-color)' : '#ef4444';
+        toast.className = `toast ${type}`;
         toast.innerHTML = `<span>${type === 'success' ? '✅' : '⚠️'}</span> <span>${message}</span>`;
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
     }
 }
 
+// Запуск приложения
 const app = new EconomyApp();
