@@ -31,18 +31,17 @@
         <!-- Экран Модулей -->
         <section id="view-modules" class="view active">
             <h1 class="page-title">Программа обучения</h1>
-            <p class="subtitle">Выберите тему для изучения теории и выполнения заданий.</p>
             <div class="modules-grid" id="modules-container">
-                <!-- Карточки генерируются JS -->
+                <!-- Карточки модулей генерируются через JS -->
             </div>
         </section>
 
         <!-- Экран Магазина -->
         <section id="view-shop" class="view">
             <h1 class="page-title">Магазин улучшений</h1>
-            <p class="subtitle">Покупайте темы оформления и достижения за заработанные баллы.</p>
+            <p class="subtitle">Покупайте темы оформления и достижения за баллы.</p>
             <div class="shop-grid" id="shop-container">
-                <!-- Товары генерируются JS -->
+                <!-- Товары генерируются через JS -->
             </div>
         </section>
 
@@ -68,7 +67,7 @@
                     <h3>Ваши покупки и темы</h3>
                     <p class="hint">Нажмите на тему, чтобы применить её.</p>
                     <div class="inventory-grid" id="inventory-container">
-                        <!-- Инвентарь генерируется JS -->
+                        <!-- Инвентарь генерируется через JS -->
                     </div>
                 </div>
 
@@ -78,11 +77,9 @@
             </div>
         </section>
 
-        <!-- Экран Деталей Модуля -->
+        <!-- Экран Деталей Модуля (Теория + Задания) -->
         <section id="view-module-detail" class="view">
-            <div class="module-nav-header">
-                <button class="btn btn-back" onclick="app.navigate('modules')">← Назад к модулям</button>
-            </div>
+            <button class="back-btn" onclick="app.navigate('modules')">← Назад к модулям</button>
             
             <div class="module-header">
                 <h1 id="detail-title">Название модуля</h1>
